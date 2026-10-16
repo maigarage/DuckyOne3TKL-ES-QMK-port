@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Active local desktop user only. No world-writable HID access or USB driver replacement.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3233", ATTRS{idProduct}=="8311", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3233", ATTRS{idProduct}=="8310", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0416", ATTRS{idProduct}=="3f00", TAG+="uaccess"

@@ -1,0 +1,27 @@
+Ducky One 3 TKL RGB community port — source distribution, 2026
+
+Project-specific original source and scripts are provided under
+GPL-2.0-or-later unless an individual file states otherwise. The LICENSE file
+contains GPL version 2; licenses/GPL-3.0.txt contains version 3. Existing
+upstream notices and individual licenses take precedence for their files.
+
+The following copyright notices are retained in the included derived port files:
+  Copyright (C) 2019 /u/KeepItUnder
+  Copyright (C) 2020 Alex Lewontin
+  Copyright (C) 2021 Ein Terakawa
+  Copyright 2020 QMK
+
+Apache-2.0-derived files are listed in THIRD_PARTY.md and retain their original
+copyright headers. Changes made for this project include NUC1261 platform/clock
+integration, linker configuration, board glue, scoped protected-register access
+for the USB driver, and experimental safety integration. These changes are not
+upstream endorsements or claims that upstream software was defective.
+
+The Ducky name and product identifiers identify compatibility only. Original
+Ducky firmware, its RGB machine code and initialization data are NOT included
+in this source distribution and are NOT relicensed under the project's license.
+No original Ducky C source or vendor redistribution permission is represented
+as available. See THIRD_PARTY.md before publishing generated artifacts.
+
+No warranty is provided. The documentation distinguishes software validation
+from physical/electrical validation.

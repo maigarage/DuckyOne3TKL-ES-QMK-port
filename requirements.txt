@@ -1,0 +1,5 @@
+# Host flashing, extraction and validation. QMK build dependencies are separate.
+hidapi==0.14.0.post4
+capstone==5.0.3
+unicorn==2.1.4
+pyelftools==0.32

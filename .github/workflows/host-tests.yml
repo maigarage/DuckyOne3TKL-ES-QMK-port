@@ -1,0 +1,43 @@
+name: Host safety tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run fake-HID policy tests (no device access or vendor downloads)
+        run: python -m unittest discover -s tests -v
+      - name: Parse PowerShell setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'Setup-Windows.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors) { $parseErrors | Out-String | Write-Error; exit 1 }
+      - name: Windows PowerShell 5.1 to Bash regression
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: .\tests\test_windows_launch.ps1 -BashPath 'C:\Program Files\Git\bin\bash.exe'
+
+      - name: Transaction fault injection (native C, no device)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O2 -Isource-overlay/keyboards/ducky/one3/tkl_rgb_experimental tests/storage/test_store.c source-overlay/keyboards/ducky/one3/tkl_rgb_experimental/ducky_store.c -o /tmp/ducky-store-test
+          /tmp/ducky-store-test
+
+      - name: Manual persistence and reset integration (Linux, no device)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O2 -Itests/persistence -Isource-overlay/keyboards/ducky/one3/tkl_rgb_experimental tests/persistence/test_persistence.c source-overlay/keyboards/ducky/one3/tkl_rgb_experimental/ducky_persistence.c source-overlay/keyboards/ducky/one3/tkl_rgb_experimental/ducky_store.c -o /tmp/ducky-persistence-test
+          for n in {0..15}; do /tmp/ducky-persistence-test "$n"; done

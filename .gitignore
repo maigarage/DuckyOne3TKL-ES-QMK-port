@@ -1,0 +1,17 @@
+# Generated/private material. Publish only the source distribution.
+work/
+.work/
+.venv*/
+__pycache__/
+*.pyc
+*.bin
+*.elf
+*.hex
+*.map
+*.exe
+*.zip
+ducky_stock_blob.S
+ducky_stock_initial.inc
+stock-*-ram.bin
+workspace.json
+SHA256SUMS.txt
