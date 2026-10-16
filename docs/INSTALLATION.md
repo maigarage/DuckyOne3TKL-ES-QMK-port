@@ -46,7 +46,7 @@ Optional console interface from PowerShell:
 & 'C:\DuckyOne3\Manage-Ducky.cmd' --cli
 ```
 
-It needs another keyboard while the Ducky is in bootloader mode. The GUI can be
+It needs another keyboard (you can use On-Screen keyboard) while the Ducky is in bootloader mode. The GUI can be
 operated with a mouse. Use the GUI's Cancel waiting button before programming;
 console users can interrupt the pre-programming wait with Ctrl+C.
 
@@ -93,8 +93,6 @@ requires another confirmation. Keep the persistent recovery marker intact. Read
 
 - **Bootloader visible but VIA cannot configure it:** VIA needs the running QMK
   application, not D+L mode. Finish installation and wait for normal enumeration.
-- **Old Arm/reset labels:** load this package's `via/ducky-one3-tkl-rgb.json` in
-  Design as a v3 definition, replacing the previous definition, then reconnect VIA.
 - **Changes disappear after unplugging:** changes are deliberately RAM-only until
   Settings storage → Keyboard flash → Save current settings to flash succeeds.
 - **Defaults did not change after upgrading:** an existing saved snapshot takes
