@@ -1,4 +1,5 @@
 # Ducky One 3 TKL RGB — Experimental QMK / VIA Port
+## Project created with 100% AI Usage - Human testing and guidance of course!
 
 Community firmware for the **Ducky One 3 TKL RGB (DKON2187ST)** with VIA remapping,
 four layers, macros, Ducky-derived lighting effects and explicit settings storage.
