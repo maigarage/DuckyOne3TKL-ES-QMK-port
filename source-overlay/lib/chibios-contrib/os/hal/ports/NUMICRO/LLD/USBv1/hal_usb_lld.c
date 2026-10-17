@@ -296,6 +296,8 @@ static void usb_lld_serve_interrupt(USBDriver* usbp)
       USBD->ATTR |= (USBD_ATTR_PHY_EN_Msk | USBD_ATTR_USB_EN_Msk);
       usbConnectBus(&USBD1);
     } else {
+      extern void ducky_rgb_usb_event(uint32_t);
+      ducky_rgb_usb_event(3); /* Physical detach. */
       usbDisconnectBus(&USBD1);
       USBD->ATTR &= ~USBD_ATTR_USB_EN_Msk;
     }
@@ -315,11 +317,15 @@ static void usb_lld_serve_interrupt(USBDriver* usbp)
     if (bussts & USBD_ATTR_USBRST_Msk) {
       /* Bus reset */
       USBD->ATTR |= (USBD_ATTR_PHY_EN_Msk | USBD_ATTR_USB_EN_Msk);
+      extern void ducky_rgb_usb_event(uint32_t);
+      ducky_rgb_usb_event(1); /* Bus reset is not a latched RGB fault. */
       _usb_reset(usbp);
     }
     if (bussts & USBD_ATTR_SUSPEND_Msk) {
       /* Enable USB but disable PHY */
       USBD->ATTR &= ~USBD_ATTR_PHY_EN_Msk;
+      extern void ducky_rgb_usb_event(uint32_t);
+      ducky_rgb_usb_event(2);
       _usb_suspend(usbp);
     }
     if (bussts & USBD_ATTR_RESUME_Msk) {

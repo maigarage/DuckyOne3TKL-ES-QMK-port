@@ -10,7 +10,7 @@ def settle(d,t):
  # consume pending frame, then allow a new foreground render and its latch
  d.settle(t);return d.settle(t+7)
 d=Device();d.render(1499);assert not d.w
-d.render(1500);assert decode(d.w)==[[[0,0,0]]*16]
+d.render(1500);d.render(2000);assert decode(d.w)==[[[0,0,0]]*16]
 frames=settle(d,1510);assert frames[:6]==[[[36864,36864,36865]]*16]*6
 # Real eleven digital levels, through the actual serializer (including bit15 rule).
 for k in [5,6,7]:via(d,k,10)
@@ -73,14 +73,14 @@ assert d.get('recording')==0 and bytes(d.u.mem_read(S['zones'],384))==before
 # Hold off includes zones and palette. Independent indicators remain active.
 d.time(80000);d.key(0x7e05);d.render(83000);d.key(0x7e05,False);assert via(d,1)==0 and via(d,10)==0 and via(d,11)==0
 # Suspend/fault cutoff and unchanged clocks/blanking.
-d.call('ducky_rgb_suspend');assert not any(d.gates.values());d.call('ducky_rgb_resume');d.render(84000);assert d.get('running')==1
+d.call('ducky_rgb_suspend');assert not any(d.gates.values());d.call('ducky_rgb_resume');d.render(84000);d.render(84500);assert d.get('running')==1
 for i in range(51):d.frame()
 assert d.get('fault')==1 and not any(d.gates.values())
-d2=Device();d2.render(1500);d2.overrun=True;d2.frame();assert d2.get('fault')==1 and not any(d2.gates.values())
+d2=Device();d2.render(1500);d2.render(2000);d2.overrun=True;d2.frame();assert d2.get('fault')==1 and not any(d2.gates.values())
 
 # Common hard ceiling applies to every mode and old queued frames, with exact red encoding.
 for cap in [0,1,25,50,80,90,100,255]:
- e=Device();e.render(1500)
+ e=Device();e.render(1500);e.render(2000)
  assert via(e,12)==90
  via(e,12,cap);bound=min(cap,90)*65535//100
  assert via(e,12)==min(cap,90)
@@ -101,12 +101,12 @@ for cap in [0,1,25,50,80,90,100,255]:
   if a in rows and not v:offs.add(a)
   if a==0x50004280 and v:assert len(offs)==7;break
 # WDT is never fed solely because main spins; requires scan progress.
-e=Device();e.render(1500);e.w=[]
+e=Device();e.render(1500);e.render(2000);e.w=[]
 e.render(1501);assert not any(a==0x40004008 for a,v in e.w)
 e.frame();e.w=[];e.render(1502);assert (0x40004008,0x5aa5) in e.w
 # USB not configured: stay dark, then recover only when configuration returns.
 e=Device();e.u.mem_write(0x20007005,b'\x01');e.render(2000);assert not e.get('running')
-e.u.mem_write(0x20007005,b'\0');e.render(2001);assert e.get('running')
+e.u.mem_write(0x20007005,b'\0');e.render(2001);e.render(2501);assert e.get('running')
 e.frame();e.u.mem_write(0x20007005,b'\x01');e.frame();assert not any(e.gates.values())
 e.render(2002);assert not e.get('running')
 assert int.from_bytes(e.u.mem_read(0x400400d8,4),'little')&2==0
@@ -114,11 +114,11 @@ assert int.from_bytes(e.u.mem_read(0x40040020,4),'little')&2==0
 assert int.from_bytes(e.u.mem_read(0x40004000,4),'little')&0x80==0
 # WDT-reset/CPU-lockup boots leave RGB disabled.
 for flags in [4,256]:
- e=Device();e.u.mem_write(0x50000004,struct.pack('<I',flags));e.render(1500)
+ e=Device();e.u.mem_write(0x50000004,struct.pack('<I',flags));e.render(1500);e.render(2000)
  assert e.get('fault') and not e.get('running') and not any(e.gates.values())
 # Invalid scan state and CM nibbles fail bounded, no arbitrary table read.
-e=Device();e.render(1500);e.set('active',2);e.frame();assert e.get('fault') and not any(e.gates.values())
-e=Device();e.render(1500);e.u.mem_write(S['zones'],b'\xff'*384);e.u.mem_write(S['zone_on'],b'\1\1')
+e=Device();e.render(1500);e.render(2000);e.set('active',2);e.frame();assert e.get('fault') and not any(e.gates.values())
+e=Device();e.render(1500);e.render(2000);e.u.mem_write(S['zones'],b'\xff'*384);e.u.mem_write(S['zone_on'],b'\1\1')
 frames=settle(e,2000);assert all(v<=36865 for f in frames[:6] for px in f for v in px)
 # Read-only diagnostics; unknown writes remain unhandled.
 e.u.mem_write(0x20008100,bytes([8,1,1,0])+bytes(28));e.call('via_custom_value_command_kb',0x20008100,32)
@@ -126,7 +126,7 @@ e.u.mem_write(0x20008100,bytes([7,1,1,0])+bytes(28));e.call('via_custom_value_co
 print(json.dumps({'result':'PASS','checks':['11 original LUT levels with independent 90 percent hard ceiling','independent indicators all states and levels','VIA bounds/get/set/unknown commands','12 modes with min/max speeds and 25% master','Alt indicator controls vs extra master','stock palette and consumed release','CM1/CM2 record/commit/priority/black/timeout','hold off includes zones','suspend and both fault cutoffs'],'additional_checks':['hard ceiling all 12 modes and queued frames','indicators included','red bit-15 encoding never exceeds ceiling','blanking before shift','WDT feed requires main plus scan','USB configuration gating and PWM stop','fail-dark watchdog reboot','CM bounds and diagnostics'], 'hardware_validated':False},indent=2))
 
 # Snapshot roundtrip preserves durable RGB settings and refuses malformed data.
-e=Device();e.render(1500)
+e=Device();e.render(1500);e.render(2000)
 via(e,2,9);via(e,3,5);via(e,8,6);via(e,12,73);via(e,4,7)
 via(e,10,1);via(e,11,1);e.u.mem_write(S['zones']+2*35,struct.pack('<H',0x8aa0))
 e.u.mem_write(S['zones']+192+2*35,struct.pack('<H',0x8000));e.u.mem_write(0x20007006,b'\x01')

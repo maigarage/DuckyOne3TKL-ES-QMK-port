@@ -13,6 +13,7 @@ combined firmware binary.
 | `source-overlay/lib/chibios-contrib/os/hal/ports/NUMICRO/NUC1261/{hal_pal_lld.c,hal_lld.h,nuc123_isr.h,nuc123_registry.h}` | [QMK ChibiOS-Contrib NUMICRO port](https://github.com/qmk/ChibiOS-Contrib); /u/KeepItUnder (2019), Alex Lewontin (2020), as attributed per file | Apache-2.0; original headers retained, text in `licenses/Apache-2.0.txt` |
 | `source-overlay/lib/chibios-contrib/os/hal/ports/NUMICRO/LLD/USBv1/hal_usb_lld.c` | Same repository; Alex Lewontin (2020), Ein Terakawa (2021) | Apache-2.0; scoped NUC1261 changes marked |
 | `source-overlay/lib/chibios-contrib/os/common/startup/ARMCMx/compilers/GCC/ld/NUC1261_test.ld` | Same repository; Alex Lewontin (2020) | Apache-2.0; adapted linker layout |
+| `source-overlay/tmk_core/protocol/chibios/usb_driver.c` | QMK; Stefan Kerkmann, Purdea Andrei, Michael Stapelberg, Ryan (@fauxpark), Fredizzimo, Giovanni Di Sirio | GPL-3.0-or-later OR Apache-2.0; original header retained; finite-send guard added |
 | Keyboard `chconf.h` | [QMK firmware](https://github.com/qmk/qmk_firmware), Copyright 2020 QMK | GPL-2.0-or-later; original header retained |
 
 The other project-specific keyboard/board files, NUC1261 clock/SysTick glue,

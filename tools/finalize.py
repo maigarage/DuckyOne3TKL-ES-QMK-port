@@ -46,7 +46,7 @@ def verify(work):
         raise ValueError("Unexpected USB device descriptor")
     return {"schema": 1, "sha256": hashlib.sha256(binary).hexdigest(), "bytes": len(binary),
             "qmk_commit": QMK_COMMIT, "packet_count": len(list(image_packets(binary))),
-            "scope": "APROM code below 0x1e000; settings 0x1e000..0x1ffff", "baseline": "test10.3",
+            "scope": "APROM code below 0x1e000; settings 0x1e000..0x1ffff", "baseline": "test10.5",
             "settings_schema": "0x000a0001", "settings_save": "explicit Save only; defaults reset changes RAM only", "hardware_validated": False,
             "ram_bytes_including_stacks": symbols["__bss_end__"] - 0x20000000}
 

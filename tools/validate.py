@@ -47,7 +47,7 @@ def main():
     for section, filename in ((".text", "rgb-text.bin"), (".data", "rgb-data.bin")):
         command(["arm-none-eabi-objcopy", "-O", "binary", "-j", section, "validation/rgb.elf", "validation/" + filename])
     command(["arm-none-eabi-nm", "-n", "validation/rgb.elf"], "rgb.nm")
-    for name in ("test_rgb", "test_linked_safety", "test_linked_settings", "test_flash_backend", "test_lut", "compare_stock_engine"):
+    for name in ("test_rgb", "test_usb_shutdown", "test_usb_wait", "test_stock_usb", "test_linked_safety", "test_linked_settings", "test_flash_backend", "test_lut", "compare_stock_engine"):
         command([sys.executable, "validation/" + name + ".py"], name + ".json")
     command(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-Ivalidation/mouse", "-I" + str(board),
              "validation/mouse/test_mouse.c", board / "ducky_mouse.c", "-o", "validation/mouse-test"])

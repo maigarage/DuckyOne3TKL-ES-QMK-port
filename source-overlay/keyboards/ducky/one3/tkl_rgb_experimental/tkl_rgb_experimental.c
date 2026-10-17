@@ -46,7 +46,7 @@ bool led_update_kb(led_t state) {
     return result;
 }
 
-void suspend_power_down_kb(void) { ducky_mouse_release(); ducky_rgb_suspend(); suspend_power_down_user(); }
+void suspend_power_down_kb(void) { ducky_rgb_suspend(); ducky_mouse_release(); suspend_power_down_user(); }
 void suspend_wakeup_init_kb(void) { ducky_rgb_resume(); suspend_wakeup_init_user(); }
 bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     if(!ducky_rgb_process(keycode,record)) return false;

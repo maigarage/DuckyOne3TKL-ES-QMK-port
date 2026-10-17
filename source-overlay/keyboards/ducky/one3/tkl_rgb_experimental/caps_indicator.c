@@ -50,7 +50,18 @@ static volatile bool running, fault;
 static volatile uint32_t scan_sequence;
 static uint32_t fed_sequence;
 static volatile uint8_t max_brightness_percent=90;
-static bool initialized, sleeping, caps, scroll, mouse, enabled=true;
+static volatile bool initialized, usb_pause_pending;
+static volatile uint32_t usb_pause_count;
+/* Diagnostic reason codes are stable; zero means no latched fault. */
+static volatile uint8_t fault_reason;
+static volatile bool usb_wait_active;
+static volatile uint8_t usb_wait_scans;
+static volatile uint32_t usb_wait_count, usb_wait_peak, usb_epoch, usb_last_event;
+static uint32_t observed_epoch, configured_since;
+static bool configured_observing;
+#define USB_STABLE_MS 500u
+#define USB_WAIT_SCAN_LIMIT 125u
+static bool sleeping, startup_ready, caps, scroll, mouse, enabled=true;
 static uint8_t brightness=9, mode, channels[3]={10,10,10}, indicator=9;
 static bool engine_ready, palette;
 static uint16_t zones[2][6][16], draft[6][16], consumed[6];
@@ -62,6 +73,44 @@ static uint32_t last_render;
 static uint32_t mode_pressed;
 static bool mode_held;
 static void all_rows_off(void) { for(unsigned i=0;i<7;i++) R32(gates[i])=0; }
+static void latch_fault(uint8_t reason) {
+    if(!fault)fault_reason=reason;
+    fault=true;ducky_safety_cutoff();
+}
+/* Called by the USB LLD IRQ: record lifecycle changes, no hardware/RTOS calls. */
+__attribute__((noinline,used)) void ducky_rgb_usb_event(uint32_t event) {usb_last_event=event;usb_epoch++;}
+/* Only the finite USB send path may declare a wait. Retry loops cannot renew it.
+ * Successful, bounded scan IRQs prove the LED multiplexer is still healthy. */
+__attribute__((noinline,used)) bool ducky_usb_wait_begin(void) {
+    uint32_t lock=ducky_reg_unlock();
+    bool allowed=running && !fault && !usb_wait_active && usb_connected_state();
+    if(allowed) {usb_wait_scans=0;usb_wait_active=true;usb_wait_count++;}
+    ducky_reg_lock(lock);return allowed;
+}
+__attribute__((noinline,used)) void ducky_usb_wait_end(void) {
+    uint32_t lock=ducky_reg_unlock();
+    if(usb_wait_active) {usb_wait_active=false;heartbeat=0;}
+    ducky_reg_lock(lock);
+}
+/* Hardware only: callable from the scan IRQ, with no engine/RTOS/HID calls.
+ * Stop the watchdog only after every LED gate and the gray clock are off.
+ * A flash transaction has running=false, so USB events cannot stop its WDT. */
+static void stop_output(void) {
+    uint32_t lock=ducky_reg_unlock();
+    running=false;
+    usb_wait_active=false;
+    R32(0xe000e180u)=1u<<9;
+    R32(TIMER_BASE)=0;
+    all_rows_off();R32(PIN(2,7))=1;
+    R32(PWM_BASE+0xd8u)&=~2u;R32(PWM_BASE+0x20u)&=~2u;
+    initialized=false;
+    ducky_reg_lock(lock);
+    ducky_watchdog_stop();
+}
+static void pause_for_usb(void) {
+    stop_output();
+    usb_pause_count++;usb_pause_pending=true;
+}
 static uint16_t ceiling(void) { unsigned p=max_brightness_percent; if(p>90)p=90; return 65535u*p/100u; }
 static uint16_t capped(uint16_t v,uint16_t c) { return v>c?c:v; }
 static uint16_t level(unsigned index) { return stock_lut[index>10?10:index]; }
@@ -93,16 +142,26 @@ static void send_frame(unsigned row, bool blank) {
 void Vector64(void) {
     all_rows_off();
     R32(TIMER_BASE+8)=1;
-    if (!running || fault || !usb_connected_state()) { all_rows_off(); return; }
-    if (++heartbeat>50) { all_rows_off(); fault=true; R32(PIN(2,7))=1; return; }
-    if(active>1 || (pending!=255 && pending>1) || bank>6) {ducky_safety_cutoff();fault=true;return;}
+    if (!running || fault) return;
+    if (!usb_connected_state()) {pause_for_usb();return;}
+    if(usb_wait_active) {
+        if(++usb_wait_scans>USB_WAIT_SCAN_LIMIT) {latch_fault(9);return;}
+        if(usb_wait_scans>usb_wait_peak)usb_wait_peak=usb_wait_scans;
+    } else if (++heartbeat>50) {latch_fault(4);return;}
+    if(active>1 || (pending!=255 && pending>1) || bank>6) {latch_fault(6);return;}
     bank=(bank+1)%7;
     if (bank==0 && pending!=255) { active=pending; pending=255; }
     send_frame(bank,false);
+    /* USB has higher priority and can change state during the serial transfer.
+     * Never turn a bank back on after such a transition. */
+    if (!usb_connected_state()) {pause_for_usb();return;}
     /* If shifting crossed a timer period, stop instead of overrunning scan. */
-    if (R32(TIMER_BASE+8)&1u) { all_rows_off(); fault=true; R32(PIN(2,7))=1; return; }
+    if (R32(TIMER_BASE+8)&1u) {latch_fault(5);return;}
     R32(gates[bank])=1;
     scan_sequence++;
+    /* Feed only AFTER a successful bounded scan, and only inside a declared
+     * finite USB send. A stuck IRQ still expires the unchanged hardware WDT. */
+    if(usb_wait_active)ducky_watchdog_feed();
 }
 static void start_timer(void) {
     uint32_t lock=ducky_reg_unlock();
@@ -121,8 +180,9 @@ static void start_timer(void) {
     ducky_reg_lock(lock);
 }
 static void init(void) {
-    if(R32(0x50000004)&((1u<<2)|(1u<<8))) {fault=true;ducky_safety_cutoff();return;}
-    if(!ducky_watchdog_start()) {fault=true;ducky_safety_cutoff();return;}
+    if(R32(0x50000004)&(1u<<8)) {latch_fault(2);return;}
+    if(R32(0x50000004)&(1u<<2)) {latch_fault(1);return;}
+    if(!ducky_watchdog_start()) {latch_fault(3);return;}
     uint32_t lock=ducky_reg_unlock();
     /* PF2 is the stock seventh bank gate (0x3930..0x3948).
      * CONFIG0.CIOINI=1 on the observed device leaves it quasi-bidirectional.
@@ -165,7 +225,7 @@ static void init(void) {
 }
 
 static void render(uint32_t now) {
-    if(active>1) {fault=true;ducky_safety_cutoff();return;}
+    if(active>1) {latch_fault(7);return;}
     if(pending!=255) return;
     unsigned back=active^1u;
     uint16_t limit=level(brightness);
@@ -201,30 +261,32 @@ void ducky_caps_set(bool on) { caps=on; last_render=0; }
 void ducky_scroll_set(bool on) { scroll=on; last_render=0; }
 void ducky_mouse_set(bool on) { mouse=on; last_render=0; }
 void ducky_rgb_suspend(void) {
+    configured_observing=false;
     if(sleeping)return;
     sleeping=true; running=false;
     if(engine_ready)ducky_stock_release();
     recording=record_hold=0;palette=paint_caps=mode_held=false;memset(consumed,0,sizeof consumed);
     if(!initialized) return;
-    R32(0xe000e180u)=1u<<9;
-    R32(TIMER_BASE)=0;
-    all_rows_off(); R32(PIN(2,7))=1;
-    send_frame(6,true);
-    /* Cut rows/PC7 before disabling the autonomous gray clock. */
-    R32(PWM_BASE+0xd8u)&=~2u;R32(PWM_BASE+0x20u)&=~2u;
-    ducky_watchdog_stop();
+    stop_output();
 }
 void ducky_rgb_resume(void) {
+    if(!sleeping && running)return; /* Duplicate queued wake events are harmless. */
     sleeping=false;
     /* Reinitialize only from foreground after USB is configured again. */
     initialized=false;
 }
-void ducky_caps_task(void) {
+/* Keep the foreground entry visible for linked-firmware regression tests. */
+__attribute__((noinline,used)) void ducky_caps_task(void) {
     uint32_t now=timer_read32();
+    if(usb_pause_pending) {
+        usb_pause_pending=false;
+        ducky_rgb_suspend(); /* Engine/editor cleanup stays in the foreground. */
+    }
     if(!usb_connected_state()) {ducky_rgb_suspend();return;}
     if(sleeping)ducky_rgb_resume();
-    if(fault || now<1500) return;
-    if(recording>2 || record_hold>2 || mode>=12) {fault=true;ducky_safety_cutoff();return;}
+    if(fault) return;
+    if(!startup_ready) {if(now<1500)return;startup_ready=true;}
+    if(recording>2 || record_hold>2 || mode>=12) {latch_fault(8);return;}
     if(running && scan_sequence!=fed_sequence) {
         fed_sequence=scan_sequence;ducky_watchdog_feed();
     }
@@ -239,7 +301,14 @@ void ducky_caps_task(void) {
         edit_activity=now;palette=false;paint_caps=false;
     }
     if(recording && now-edit_activity>=30000) {recording=0;palette=false;paint_caps=false;}
-    if(!initialized) { render(now); init(); }
+    if(!initialized) {
+        uint32_t epoch=usb_epoch;
+        if(!configured_observing || observed_epoch!=epoch) {
+            observed_epoch=epoch;configured_since=now;configured_observing=true;return;
+        }
+        if(now-configured_since<USB_STABLE_MS)return;
+        render(now);init();
+    }
     /* Follow completed bank scans, not an independent 16 ms oscillator.
      * pending is cleared only at bank 0. Stock dispatch periods are 1/7/4/8/10/2 frames. */
     if(pending==255) {ducky_stock_step();render(now);last_render=now;}
@@ -255,7 +324,7 @@ static void choose_palette(unsigned r,unsigned c) {
     palette=false;
 }
 bool ducky_rgb_process(uint16_t keycode,keyrecord_t *record) {
-    if(recording>2 || record_hold>2) {fault=true;ducky_safety_cutoff();return true;}
+    if(recording>2 || record_hold>2) {latch_fault(8);return true;}
     bool pressed=record->event.pressed;
     unsigned r=record->event.key.row,c=record->event.key.col;
     ensure_engine();
@@ -314,8 +383,17 @@ void via_custom_value_command_kb(uint8_t *data,uint8_t length) {
     if(data[1]==2){ducky_settings_command(data,length);return;}
     if(data[1]==1 && data[0]==id_custom_get_value && length>=8) {
         static const uint32_t regs[]={0x50000004,0x50000018,0x50000024,0x40004000,0x50000210,0x50000214,0x50000218};
-        if(data[2]>7) {data[0]=id_unhandled;return;}
-        uint32_t v=data[2]==7?((uint32_t)fault|((uint32_t)running<<1)|((uint32_t)max_brightness_percent<<8)):R32(regs[data[2]]);
+        if(data[2]>14) {data[0]=id_unhandled;return;}
+        uint32_t v;
+        if(data[2]<7)v=R32(regs[data[2]]);
+        else if(data[2]==7)v=(uint32_t)fault|((uint32_t)running<<1)|((uint32_t)max_brightness_percent<<8);
+        else if(data[2]==8)v=0x02000000u|fault_reason;
+        else if(data[2]==9)v=usb_pause_count;
+        else if(data[2]==10)v=scan_sequence;
+        else if(data[2]==11)v=usb_wait_count;
+        else if(data[2]==12)v=usb_wait_peak;
+        else if(data[2]==13)v=usb_epoch;
+        else v=usb_last_event;
         memcpy(data+4,&v,4);return;
     }
     if(data[1]!=0) {data[0]=id_unhandled;return;}

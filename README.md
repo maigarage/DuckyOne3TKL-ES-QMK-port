@@ -3,7 +3,7 @@
 Community firmware for the **Ducky One 3 TKL RGB (DKON2187ST)** with VIA remapping,
 four layers, macros, Ducky-derived lighting effects and explicit settings storage.
 
-**Release: test10.3, with the 10-second bootloader wait integrated.**
+**Release: test10.5 — bounded USB waits and stable lighting startup.**
 This is a complete project source package, not a ready-to-flash binary release.
 Setup downloads pinned dependencies and the original vendor input, builds locally,
 and checks the result. **Setup never flashes the keyboard.**
@@ -35,6 +35,9 @@ hardware behavior are not certified by the included automated tests.
   Rainbow Reactive, Reactive, Halo, Breathe, Radar, Laser and Off.
 - Two custom per-key lighting overlays, CM1 and CM2.
 - Separate Caps Lock, Scroll Lock and mouse-mode indicators.
+- Coordinated RGB/watchdog pause when USB becomes inactive, with resume after 500 ms of observed configuration stability.
+- Bounded handling of finite USB sends, with scan-progress and timeout safeguards.
+- Read-only fault, USB-wait and lifecycle diagnostics.
 - Firmware-enforced maximum lighting ceiling of 90%.
 - Manual settings persistence: edits affect RAM; only **Save** writes settings flash.
 - Original Ducky 1.16 restoration through the same assistant.
@@ -44,6 +47,18 @@ Defaults are white Full Backlit, RGB channel levels 10/10/10, master brightness
 level 9 (approximately 56.25%) and indicator brightness level 9. Indicators light
 only when their corresponding functions are active. Previously saved settings
 still take precedence when the keyboard starts.
+
+## Upgrading from test10.3 / test10.4
+
+This update changes the keyboard firmware: rebuild and flash it. Replacing only
+the VIA JSON or `manage.py` does not install the fix. Reuse your existing build
+workspace when running Setup from this new source folder, then use Manage-Ducky
+to install QMK. Disconnect the keyboard from USB power once before the upgrade
+to clear the old fail-dark state; do not interrupt a flash operation. Saved
+settings retain the same schema. See [BIOS and USB startup](docs/BIOS_USB.md)
+for the timing policy, diagnostic fields and physical acceptance test. Genuine
+USB resets or power loss may still blank the lights; no automatic fault clearing
+is introduced.
 
 ## Before setup
 

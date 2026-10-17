@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Save test10.3 settings to flash or restore port defaults in RAM."""
+"""Save test10.5 settings to flash or restore port defaults in RAM."""
 import argparse
 import json
 import time
@@ -89,7 +89,7 @@ def main():
     from tkinter import ttk, messagebox
     import threading
     root = tk.Tk()
-    root.title('Ducky test10.3 — Manual settings')
+    root.title('Ducky test10.5 — Manual settings')
     root.geometry('700x310')
     ttk.Label(root, text='Keep the keyboard connected normally. Do NOT hold D + L.\nClose VIA before using this window.\n\nSave includes all layers, macros, RGB settings and CM1/CM2.\nOnly Save writes flash. Restore defaults changes RAM only.\nFinish CM editing and release every key. RGB briefly turns off when saving.', padding=14).pack(anchor='w')
     state = tk.StringVar(value='Reading keyboard status…')

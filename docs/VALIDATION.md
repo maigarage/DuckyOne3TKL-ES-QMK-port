@@ -1,3 +1,81 @@
+# test10.5 validation — 2026-10-17
+
+This release changes finite USB-send handling, RGB configuration stability and
+read-only diagnostics. Rebuild and flash to install it. No physical keyboard
+was connected during these checks.
+
+- Pinned QMK/ChibiOS build with Arm GCC 13.2.1 passed.
+- Final image: **56716 bytes**; static RAM including declared stacks:
+  **16668 bytes** out of 20480. This is not a measured worst-case stack bound.
+- Final SHA-256: `8ef60baf2a1e5d73c8f7625e0a0a8a4ad082d6de4a4beba58ff16a8d23ce55b6`.
+- **44 host tests passed**, including diagnostics v2/legacy support and a native
+  harness executing the shipped USB send function with mocked queue operations.
+  The transport harness covers retries, single lease ownership, infinite waits,
+  inactive USB, immediate timeout and normal completion.
+- Final linked disassembly contains the finite-send begin/end calls and all three
+  USB lifecycle event calls. The USB transport hook is not only a standalone stub.
+- Standalone and final-linked ARM checks cover 100-scan waits, the 125-scan limit,
+  refusal to renew the allowance, scan-overrun cutoff, USB-loss cancellation,
+  flash-watchdog ownership, no feed without scanning, 500 ms stability with an
+  intervening reset, and ordinary foreground timeout at scan 51.
+- Full RGB and USB shutdown regressions cover all 12 modes, brightness/indicator
+  limits, CM overlays, settings roundtrip, IRQ-only pauses, transfer-time USB loss,
+  repeated resume, duplicate wake and timer wrap.
+- Final linked safety, settings-protocol and SRAM flash-backend checks passed.
+  Original/relocated engine comparison covers 480 updates. LUT and mouse checks
+  passed. Storage tests cover 625 injected cut points and 16 persistence cases.
+- Original Ducky 1.16 USB control-flow emulation covers suspend/resume, bus reset
+  and HID BOOT/REPORT protocol selection. Hardware transition bodies are
+  intercepted; this establishes branch selection, not real LED-driver behavior.
+
+The final build keeps the foreground task and USB event/wait entry points visible
+for linked regression tests. Timer, USB and watchdog registers are modeled.
+No real watchdog expiry, power transition, BIOS handoff, Windows installation,
+current, voltage, temperature or worst-case interrupt latency was measured.
+The latest user report (`RSTSTS=0x64`, reason 1, zero scan sequence) establishes a
+watchdog-startup inhibit, not the precise original stall. Follow the physical
+acceptance steps in [BIOS_USB.md](BIOS_USB.md).
+
+---
+
+# test10.4 validation — 2026-10-17
+
+This release changes the RGB USB lifecycle and read-only diagnostics. It requires
+rebuilding and flashing. No physical keyboard was connected in this validation.
+
+- QMK build with Arm GCC 13.2.1 and all pinned upstream revisions passed.
+- Final image: **56308 bytes**; static RAM including declared stacks:
+  **16636 bytes** out of 20480. This is not a measured worst-case stack bound.
+- Final SHA-256: `3e755ed417ac1ab9484331d4b269a3804064763c352f056ac292644f0cefe570`.
+- **42 host tests passed**, including extended/legacy diagnostics and malformed
+  response rejection; all diagnostic requests are read-only VIA GET operations.
+- The new ARM USB regression passed against both the standalone controller and
+  the final linked firmware: IRQ-only pause with delayed foreground, USB loss
+  during serial transfer, 20 reconnect cycles in each target, duplicate wake,
+  32-bit timer wrap, flash-watchdog ownership and latched real faults.
+- Full RGB regression passed for the corrected controller, including all 12
+  modes, brightness/indicator limits, CM overlays and settings roundtrip.
+- Final linked image passed emergency cutoff, output ceiling, USB gating,
+  watchdog, settings-protocol and SRAM flash-backend checks.
+- Storage tests passed **625 fault-injection cut points** and **16 native
+  persistence-controller cases**. No automatic settings saving was introduced.
+- Original-versus-relocated engine comparison passed all 480 updates. Brightness
+  LUT and mouse regression checks passed.
+- Actual original 1.16 USB IRQ and foreground branch selection passed the new
+  stock-USB control-flow test. Hardware transition routines were intercepted;
+  this does not prove physical original-firmware timing.
+
+The final build retains the RGB task as a non-inlined symbol for linked tests.
+The full standalone RGB run preceded that symbol-retention annotation; the
+final linked safety/USB/settings/flash checks used the final image listed above.
+Timer, USB and watchdog registers are modeled. No real watchdog expiry, analog
+power transition, PC shutdown, Windows installer or electrical behavior was
+measured. The user must run the acceptance steps in [USB_SHUTDOWN.md](USB_SHUTDOWN.md).
+The reset evidence includes watchdog and low-voltage flags; chronology and the
+physical cause of the reported event remain unproven.
+
+---
+
 # GitHub source package validation — 2026-10-16
 
 This package integrates the 10-second bootloader wait and English documentation.

@@ -1,4 +1,4 @@
-# Test10.3: manual settings writes only
+# Test10.5: manual settings writes only
 
 Only the explicit Save action writes to `0x1e000–0x1ffff`. Startup, VIA edits,
 JSON imports and Restore defaults only read flash or update RAM. No background
@@ -9,7 +9,7 @@ The firmware remains experimental; write timing and electrical behavior need har
 # Scope, flashing policy and hardware validation
 
 This is an experimental community port, not Ducky firmware certification. The
-distribution packages test10.3, extending the test9 firmware implementation. Earlier user tests
+distribution packages test10.5, extending the test9 firmware implementation. Earlier user tests
 confirmed keyboard input, RGB and indicators; the test9 safety changes and this
 new cross-platform assistant still require testing on the physical keyboard.
 
@@ -85,13 +85,21 @@ typing afterward. If needed, enter D+L again and choose restoration.
 ## RGB and voltage safeguards retained from test9
 
 - RGB rows start blank. All seven rows are blanked before shifting new data.
-- USB suspension/unconfigured state suppresses lighting; scan overrun stops output.
+- USB suspension/unconfigured state stops RGB scanning, all seven row gates, PC7 output enable, gray-clock output and the RGB watchdog directly from the scan IRQ.
+- USB state is rechecked after serial transfer; a disconnect cannot re-enable the just-shifted bank.
+- Engine/editor cleanup and initialization remain in foreground code. Genuine scan overruns still latch dark.
+- USB loss cannot disable the separate watchdog used during explicit settings writes: that path has RGB scanning stopped.
 - The final serializer caps every channel, including indicators and custom zones,
   at a user-selectable **0–90%** digital ceiling. VIA cannot raise it above 90%.
 - Default master level 9 is `36864/65535`, approximately **56.25%**. Indicator
   brightness also defaults to level 9, has its own setting and still passes through the final ceiling.
 - The watchdog uses independent LIRC with a nominal 1024-tick interval
   (about 102.4 ms at nominal 10 kHz). Actual oscillator/reset timing is not measured.
+- Outside declared finite USB sends, the foreground heartbeat still faults at scan 51.
+  A declared send has a separate 125-scan budget; retries cannot renew it. During
+  that budget, only a successful scan may feed the unchanged hardware watchdog.
+  Scan 126 faults, and scan overrun/invalid-state checks remain active throughout.
+  See [BIOS_USB.md](BIOS_USB.md) for the precise timing and limitations.
 - HardFault, unhandled exceptions and watchdog IRQ use a stackless row cutoff.
 - The watchdog-reset path starts dark. A host hang does not get interpreted as a
   reason to raise voltage, LED current gain or brightness.

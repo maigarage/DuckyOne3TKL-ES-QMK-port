@@ -30,7 +30,7 @@ button operates in RAM without a separate Arm step.
 
 ## In VIA
 
-1. Install test10.3 and import `via/ducky-one3-tkl-rgb.json` as a v3 definition.
+1. Install test10.5 and import `via/ducky-one3-tkl-rgb.json` as a v3 definition.
 2. Configure normally, then open **Settings storage → Keyboard flash**.
 3. Use **Save current settings to flash** when satisfied.
 4. Release all keys and finish CM editing. Keep USB connected until the last result
@@ -83,7 +83,7 @@ contents or failed writes are reported and never retried in the background.
 
 Run `Settings-Ducky.cmd` / `Settings-Ducky.sh`, with the keyboard in normal mode
 (not D+L) and VIA closed. The window has exactly two action buttons; status is read
-when it opens. The updated tool requires protocol revision 3 (test10.2/test10.3) and refuses
+when it opens. The updated tool requires protocol revision 3 (test10.2 through test10.5) and refuses
 older firmware before issuing writes: older Restore semantics included a flash save.
 
 ```text
@@ -108,7 +108,7 @@ The settings protocol revision is distinct from the compatible snapshot schema.
 Each bank contains a 32-byte header, 2048-byte QMK EEPROM image and 416-byte RGB
 record. The header includes schema `0x000a0001`, sequence and complemented sequence,
 CRC-32 and a final commit marker. Previously reserved RGB byte 24 is written as `0xa0` (off). Legacy `0` and
-`0xa1` are accepted on load, but cannot enable automatic saving in test10.2 or test10.3.
+`0xa1` are accepted on load, but cannot enable automatic saving in test10.2 through test10.5.
 The partition, payload size and schema remain compatible with test10/test10.1. The inactive bank is erased and written first;
 every programmed word and erased page is read back. The CRC covers the header's
 identity/length/sequence and the payload. The commit marker is written last. The
@@ -149,7 +149,7 @@ interpret or import QMK snapshots.
 
 First physical test:
 
-1. Flash test10.3 and import the matching VIA definition.
+1. Flash test10.5 and import the matching VIA definition.
 2. Change a key/RGB setting, use Save, check success and reconnect: settings should persist.
 3. Make different changes without Save and reconnect: the previously saved settings should return.
 4. Restore defaults without Save and reconnect: the previously saved settings should return.

@@ -5,21 +5,23 @@ and generated build workspace are separate and both must remain available.
 The setup scripts build the firmware; **Manage-Ducky** is the separate flashing
 assistant. **Settings-Ducky** changes settings on an already running QMK keyboard.
 
-## Existing test10.3 users
+## Upgrading to test10.5
 
-This package integrates the bootloader-wait patch. There is no keyboard firmware
-change relative to test10.3. If an existing installation already works, close the
-assistant and replace `tools/manage.py` in the source folder referenced by its
-launcher with the version from this package. Reopen the launcher. No firmware
-recompilation or reinstallation is needed solely for the countdown.
+This release changes the firmware, so rebuild and flash QMK. Extract the complete
+new source package, run its Setup script, and select the existing build workspace
+(e.g. `C:\DuckyOne3`). Setup reuses pinned dependencies and regenerates launchers
+pointing at the new source directory. Keep that directory available afterward.
+Then run Manage-Ducky and choose QMK installation. The 10-second bootloader wait
+and explicit flashing confirmation remain in place.
 
-Alternatively, keep this new source folder, rerun its setup with your existing
-Ducky workspace, and let setup rebuild and regenerate launchers with the new paths.
-Do not delete the old project folder until the regenerated launchers are in use.
+Disconnect USB power once before starting the upgrade if the old firmware is
+latched dark. Reconnect as instructed by Manage-Ducky for D+L bootloader entry.
+Never disconnect during flashing. Existing saved settings use the same storage
+schema; Restore defaults and Save are not required for this update.
 
-When upgrading from older firmware, use the complete setup/install process and
-load the included VIA definition. Existing saved settings take priority. To use
-test10.3 defaults, restore defaults in VIA and then explicitly save them.
+A JSON import alone does not install this fix. The existing VIA control IDs remain
+compatible; the bundled JSON identifies the new version. After installation,
+follow the BIOS, shutdown and restart checks in [BIOS_USB.md](BIOS_USB.md).
 
 ## Windows troubleshooting
 
